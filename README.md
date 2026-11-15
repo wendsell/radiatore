@@ -149,8 +149,13 @@ The account itself (`gputemp`) is a locked system user with no password.
 
 # My Setup
 
+This is an AI rig of gremlin eBay-bargain proportions: a used datacenter GPU,
+a used server board, and a generic 3U case hacked up to fit them. If your
+setup is equally held together, this guide is for you.
+
 | Part | What |
 |---|---|
+| Chassis | Generic **3U** server case, hacked up to fit |
 | Board | Supermicro **X10DRL-CT** |
 | CPUs | 2 × Xeon E5-2690 v4 |
 | GPU | **Tesla P100 16 GB PCIe**, passive, `vfio-pci` passthrough |
@@ -162,8 +167,8 @@ The account itself (`gputemp`) is a locked system user with no password.
 | Fan zones | zone 0 = FAN1–FAN6 (CPUs and system), zone 1 = FANA + FANB (the GPU fans) |
 
 A passive card needs air forced *through* its heatsink. A server chassis
-built for these cards ducts that for you. Mine doesn't, so the shroud mounts
-two 40 mm fans straight onto the P100's intake. Those two fans are smfc's GPU
+built for these cards ducts that for you. A hacked-up generic 3U case doesn't,
+so the shroud mounts two 40 mm fans straight onto the P100's intake. Those two fans are smfc's GPU
 zone.
 
 **Why PETG:** the shroud sits on a card that runs near 80 °C. PLA starts to
