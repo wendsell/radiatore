@@ -1,0 +1,5 @@
+# /var/lib/gputemp/.ssh/authorized_keys on the GPU VM (owner gputemp, mode 600).
+# One line. "restrict" turns off forwarding, PTY and the rest; "from" limits the
+# key to the Proxmox host's address; "command" means the key can run exactly
+# this query and nothing else, whatever the client asks for.
+restrict,from="192.0.2.10",command="/usr/bin/nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits" ssh-ed25519 AAAA...your-public-key... smfc-gpu-temp@proxmox-host

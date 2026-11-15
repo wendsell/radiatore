@@ -1,0 +1,54 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 wendsell. Part of Radiatore: https://github.com/wendsell/radiatore
+#
+# smfc-gpu-temp: stand-in for nvidia-smi, used by SMFC's [GPU] controller.
+# Reads the GPU temperature from the VM the GPU is passed through to, over SSH.
+# The key is restricted on the VM to one nvidia-smi query (forced command).
+#
+# FAIL-SAFE: on any error (VM down, SSH timeout, bad output) print FAILSAFE_TEMP,
+# which is above max_temp in smfc.conf, so zone 1 (FANA/FANB) goes to 100%.
+# Always exits 0 and always finishes within ~TIMEOUT seconds, because smfc runs this
+# without a timeout and a hang would also freeze CPU fan control.
+#
+# SMFC passes nvidia-smi arguments; they are ignored here.
+
+# Settings: override any of these in /etc/default/smfc-gpu-temp
+VM_HOST="gputemp@gpu-vm.lan"
+KEY="/etc/smfc/gpu-temp.key"
+KNOWN_HOSTS="/etc/smfc/gpu-vm.known_hosts"
+TIMEOUT=4
+FAILSAFE_TEMP=90
+STATE_FILE="/run/smfc-gpu-temp.state"
+# shellcheck source=/dev/null
+[ -r /etc/default/smfc-gpu-temp ] && . /etc/default/smfc-gpu-temp
+
+out=$(timeout -k 1 "$TIMEOUT" ssh -T -n \
+    -i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes \
+    -o UserKnownHostsFile="$KNOWN_HOSTS" -o StrictHostKeyChecking=yes \
+    -o ConnectTimeout=3 -o ServerAliveInterval=1 -o ServerAliveCountMax=2 \
+    -o LogLevel=ERROR "$VM_HOST" 2>/dev/null)
+rc=$?
+
+temp=$(printf '%s\n' "$out" | head -n1 | tr -d '[:space:]')
+if [ "$rc" -eq 0 ] && [[ "$temp" =~ ^[0-9]{1,3}$ ]] && [ "$temp" -ge 5 ] && [ "$temp" -le 120 ]; then
+    state="ok"
+else
+    state="fail"
+    reason="rc=$rc out='$(printf '%s' "$out" | head -c 80 | tr -d '\n')'"
+    temp=$FAILSAFE_TEMP
+fi
+
+# Log only on state changes, not every poll.
+prev=$(cat "$STATE_FILE" 2>/dev/null)
+if [ "$state" != "$prev" ]; then
+    echo "$state" > "$STATE_FILE" 2>/dev/null
+    if [ "$state" = "fail" ]; then
+        logger -t smfc-gpu-temp -p daemon.warning "GPU temp read FAILED ($reason), reporting ${FAILSAFE_TEMP}C fail-safe"
+    else
+        logger -t smfc-gpu-temp -p daemon.notice "GPU temp read OK again (${temp}C)"
+    fi
+fi
+
+echo "$temp"
+exit 0

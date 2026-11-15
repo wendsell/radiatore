@@ -1,0 +1,6 @@
+# /etc/default/smfc-gpu-temp on the Proxmox host: overrides for smfc-gpu-temp.
+VM_HOST="gputemp@192.0.2.20"
+#KEY="/etc/smfc/gpu-temp.key"
+#KNOWN_HOSTS="/etc/smfc/gpu-vm.known_hosts"
+#TIMEOUT=4
+#FAILSAFE_TEMP=90
