@@ -155,16 +155,16 @@ The account itself (`gputemp`) is a locked system user with no password.
 | CPUs | 2 × Xeon E5-2690 v4 |
 | GPU | **Tesla P100 16 GB PCIe**, passive, `vfio-pci` passthrough |
 | GPU shroud | [P100 GPU cooling, 40 mm fan, direct blow version](https://makerworld.com/en/models/2850788-p100-gpu-cooling-40-fan-direct-blow-version#profileId-3435818) (MakerWorld), printed in **PETG** |
-| GPU fans | **ARCTIC S4028-6K**: 40 × 40 × 28 mm, 250–6000 RPM, PWM |
+| GPU fans | 2 × **ARCTIC S4028-6K** in the shroud (40 × 40 × 28 mm, 250–6000 RPM, PWM), on FANA and FANB |
 | Host | Proxmox VE 9 |
 | GPU VM | Ubuntu 24.04, NVIDIA **580-server** driver (last branch with Pascal support), packages held |
 | Fan control | **smfc 6.4.2** |
 | Fan zones | zone 0 = FAN1–FAN6 (CPUs and system), zone 1 = FANA + FANB (the GPU fans) |
 
 A passive card needs air forced *through* its heatsink. A server chassis
-built for these cards ducts that for you. Mine doesn't, so the shroud bolts a
-40 mm fan straight onto the P100's intake, and that fan is what smfc's GPU
-zone actually controls.
+built for these cards ducts that for you. Mine doesn't, so the shroud mounts
+two 40 mm fans straight onto the P100's intake. Those two fans are smfc's GPU
+zone.
 
 **Why PETG:** the shroud sits on a card that runs near 80 °C. PLA starts to
 soften at around 60 °C. PETG holds up to about 80 °C, which is enough for the
