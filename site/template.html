@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{title}}: passive Tesla P100 cooling with smfc, GPU in a VM</title>
+<title>{{title}}: Supermicro fans that follow a passed-through NVIDIA GPU (smfc)</title>
 <meta name="description" content="{{description}}">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{{title}}">
@@ -157,7 +157,7 @@
         <a class="btn ghost" href="{{repo}}/tree/main/bin">The script</a>
       </div>
     </div>
-    <div class="readout" role="img" aria-label="Live readings: P100 at 53 degrees, GPU fan zone at 48 percent, fail-safe armed at 90 degrees">
+    <div class="readout" role="img" aria-label="Live readings from a Tesla P100: 53 degrees, GPU fan zone at 48 percent, fail-safe armed at 90 degrees">
       <div class="bar"><i></i><i></i><i></i><span>journalctl -u smfc</span></div>
 <pre><span class="d">VM    </span> nvidia-smi        <b>54 °C</b>  34 W
 <span class="d">host  </span> smfc-gpu-temp     <b>53 °C</b>

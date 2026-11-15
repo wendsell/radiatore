@@ -3,11 +3,12 @@
 # Copyright (C) 2026 wendsell. Part of Radiatore: https://github.com/wendsell/radiatore
 #
 # smfc-gpu-temp: stand-in for nvidia-smi, used by SMFC's [GPU] controller.
-# Reads the GPU temperature from the VM the GPU is passed through to, over SSH.
+# Reads GPU temperatures from the VM the NVIDIA GPU(s) are passed through to, over SSH.
 # The key is restricted on the VM to one nvidia-smi query (forced command).
+# With several GPUs, nvidia-smi prints one line each; this reports the hottest.
 #
-# FAIL-SAFE: on any error (VM down, SSH timeout, bad output) print FAILSAFE_TEMP,
-# which is above max_temp in smfc.conf, so zone 1 (FANA/FANB) goes to 100%.
+# FAIL-SAFE: on any error (VM down, SSH timeout, bad output on ANY line) print
+# FAILSAFE_TEMP, which is above max_temp in smfc.conf, so the GPU zone goes to 100%.
 # Always exits 0 and always finishes within ~TIMEOUT seconds, because smfc runs this
 # without a timeout and a hang would also freeze CPU fan control.
 #
@@ -30,8 +31,23 @@ out=$(timeout -k 1 "$TIMEOUT" ssh -T -n \
     -o LogLevel=ERROR "$VM_HOST" 2>/dev/null)
 rc=$?
 
-temp=$(printf '%s\n' "$out" | head -n1 | tr -d '[:space:]')
-if [ "$rc" -eq 0 ] && [[ "$temp" =~ ^[0-9]{1,3}$ ]] && [ "$temp" -ge 5 ] && [ "$temp" -le 120 ]; then
+# One temperature per GPU. Every line must be a sane number, or the whole read fails.
+temp="" ok=0
+if [ "$rc" -eq 0 ]; then
+    ok=1
+    while IFS= read -r line; do
+        line=${line//[[:space:]]/}
+        [ -z "$line" ] && continue
+        if [[ "$line" =~ ^[0-9]{1,3}$ ]] && [ "$line" -ge 5 ] && [ "$line" -le 120 ]; then
+            { [ -z "$temp" ] || [ "$line" -gt "$temp" ]; } && temp=$line
+        else
+            ok=0
+            break
+        fi
+    done <<< "$out"
+    [ -z "$temp" ] && ok=0
+fi
+if [ "$ok" -eq 1 ]; then
     state="ok"
 else
     state="fail"

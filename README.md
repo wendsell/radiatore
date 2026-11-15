@@ -1,12 +1,15 @@
 # Radiatore
 
-### Keeping a passively cooled Tesla P100 alive in a Supermicro server, when the GPU lives inside a VM.
+### Server fans that follow your GPU's temperature on a Supermicro board, when the NVIDIA GPU lives inside a VM.
 
-Supermicro's fan control has no idea a datacenter GPU needs airflow, and the
-best fan controller for these boards can't read a GPU that's passed through to
-a virtual machine. This is how I made the server's fans follow the P100's
-temperature anyway, with a fail-safe that runs the fans flat out whenever it
-can't get a reading. It took a few days to get right.
+Supermicro's fan control has no idea a GPU needs airflow, and the best fan
+controller for these boards can't read a GPU that's passed through to a
+virtual machine. This is how I made the server's fans follow my passively
+cooled Tesla P100's temperature anyway, with a fail-safe that runs the fans
+flat out whenever it can't get a reading. It took a few days to get right.
+
+It isn't P100-specific: it works with any NVIDIA GPU that `nvidia-smi` can read
+inside the VM, and with several of them.
 
 > **Proxmox host + passed-through GPU + smfc + one very restricted SSH key.**
 
@@ -15,6 +18,7 @@ can't get a reading. It took a few days to get right.
 ## Table of Contents
 
 - [TL;DR](#tldr)
+- [Will It Work With My GPU?](#will-it-work-with-my-gpu)
 - [The Problem](#the-problem)
 - [How It Works](#how-it-works)
 - [My Setup](#my-setup)
@@ -34,14 +38,41 @@ can't get a reading. It took a few days to get right.
 
 - A passive GPU like the Tesla P100 has **no fan**. It relies on the server's
   chassis fans, and stock Supermicro fan modes don't follow GPU temperature.
+  Cards with their own fans benefit too: the case fans can ramp with GPU load.
 - [smfc](https://github.com/petersulyok/smfc) can drive Supermicro fan zones
   from GPU temperature, by calling `nvidia-smi`. But with the GPU passed
   through to a VM, the host has **no NVIDIA driver and no `nvidia-smi`**.
 - So smfc calls a small stand-in script instead, `smfc-gpu-temp`, which asks the
-  VM for the temperature over SSH.
+  VM for the temperature over SSH. With several GPUs, it reports the hottest.
 - The SSH key can only run **one** `nvidia-smi` query, and only from the host.
 - **Any failure reads as 90 °C**, so the GPU fans go to 100%. That covers the VM
   being off, SSH timing out, or junk output.
+
+---
+
+# Will It Work With My GPU?
+
+Probably, if you have all three of these:
+
+| Need | Why |
+|---|---|
+| A **Supermicro board** smfc supports | smfc drives the fans through Supermicro's IPMI commands. Check its [supported boards](https://github.com/petersulyok/smfc). |
+| An **NVIDIA GPU passed through to a VM** | Any card the VM's driver supports: Tesla and other datacenter cards, Quadro/RTX workstation cards, GeForce. Passive cards gain the most. |
+| **SSH from the host to that VM** | Proxmox is my setup, but ESXi, Unraid, plain KVM and others work the same way: the host only needs to reach the VM over SSH. |
+
+**Several GPUs in one VM:** the key's `nvidia-smi` query returns one line per
+GPU, and the script reports the **hottest** one. If any GPU's reading is
+missing or garbage, the whole read counts as failed and the fans go to 100%.
+All your GPU fans follow the hottest card. That's the safe default for cards
+sharing a chassis.
+
+**GPUs in different VMs:** use one key and VM address per VM, as separate
+copies of the script with their own `/etc/default` file. Point a separate
+smfc `[GPU:n]` controller at each copy.
+
+**Tested on:** a Tesla P100 16 GB PCIe (passive) in a Supermicro X10DRL-CT.
+If you get it running on other hardware, [open an issue](https://github.com/wendsell/radiatore/issues)
+and I'll add it here.
 
 ---
 
@@ -89,7 +120,8 @@ temperature back. `smfc-gpu-temp`:
 1. SSHes to the VM with a dedicated key, with a hard 4-second limit
    (`timeout -k 1 4 ssh …`).
 2. Ignores smfc's arguments. The VM decides what runs, not the host.
-3. Checks the answer is a sane number (5–120 °C).
+3. Checks the answer is a sane number (5–120 °C). With several GPUs, every
+   line has to be, and the hottest one is reported.
 4. On **any** failure, prints `90` instead. That's above smfc's `max_temp`, so
    the GPU fan zone goes to 100%.
 5. Logs only when the state changes ("read FAILED" / "read OK again"), not
@@ -324,6 +356,7 @@ had to be touched.
 | [`examples/authorized_keys`](examples/authorized_keys) | The restricted key line for the VM |
 | [`examples/smfc-gpu-temp.default`](examples/smfc-gpu-temp.default) | `/etc/default/smfc-gpu-temp` example (VM address and so on) |
 | [`tools/fan_sweep.sh`](tools/fan_sweep.sh) | Zone 0 duty sweep for finding resonance |
+| [`tests/test-smfc-gpu-temp.sh`](tests/test-smfc-gpu-temp.sh) | Tests the script against a fake `ssh`: one GPU, several, failures, a hang. No VM or root needed. |
 
 ---
 
